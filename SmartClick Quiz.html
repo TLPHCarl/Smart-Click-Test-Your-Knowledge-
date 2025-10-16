@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SMART CLICK — Reading & Writing Quiz</title>
+<style>
+:root {
+  --bg1:#001427; --bg2:#001a33;
+  --neon1:#60a5fa; --accent:#33ccff; --fg:#e6f7ff;
+  --correct:#2ecc71; --wrong:#ff6b6b;
+}
+*{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
+html,body{height:100%;margin:0;background:linear-gradient(120deg,var(--bg1),var(--bg2));color:var(--fg);overflow:hidden;}
+.stage{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;position:relative;padding:24px;}
+.bg-anim{position:fixed;inset:0;z-index:-2;
+  background:radial-gradient(40% 40% at 10% 20%,rgba(96,165,250,0.06),transparent 8%),
+             radial-gradient(30% 30% at 90% 80%,rgba(124,58,237,0.04),transparent 8%);
+  filter:blur(18px);
+}
+.watermark{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-weight:900;font-size:8rem;color:rgba(96,165,250,0.03);pointer-events:none;z-index:-1;}
+.logo-big{font-size:48px;font-weight:900;color:var(--neon1);margin-bottom:20px;text-shadow:0 0 12px var(--accent);}
+.loadbar{width:80vw;max-width:480px;height:18px;border-radius:14px;background:rgba(255,255,255,0.06);overflow:hidden;margin-bottom:10px;}
+.bar{height:100%;width:0%;background:linear-gradient(90deg,var(--neon1),var(--accent));transition:width .25s linear;}
+.loading-text{color:#cfefff;font-size:15px;}
+.start-btn,.bigbtn{
+  min-width:160px;padding:12px 20px;border-radius:14px;
+  background:rgba(255,255,255,0.05);border:none;font-weight:900;
+  color:var(--fg);font-size:16px;cursor:pointer;
+  transition:background .15s,transform .12s;
+}
+.start-btn:hover,.bigbtn:hover{background:rgba(255,255,255,0.09);transform:translateY(-3px);}
+.menu{display:none;flex-direction:column;align-items:center;gap:18px;opacity:0;transform:scale(0.98);transition:opacity .35s ease,transform .35s ease;}
+.menu.show{display:flex;opacity:1;transform:scale(1);}
+.subjects-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);
+  gap:18px;margin-top:20px;width:90%;max-width:640px;
+}
+.subject-btn{
+  border:none;border-radius:14px;padding:18px 20px;font-weight:800;
+  color:var(--fg);cursor:pointer;overflow:hidden;text-align:center;
+  transition:transform .12s,background .18s;
+}
+.subject-btn:hover{transform:translateY(-6px);}
+.RAW{background-color:#FF6B6B;}
+.KPWKP{background-color:#4ECDC4;}
+.EALS{background-color:#FFD93D;color:black;}
+.CSS{background-color:#6C63FF;}
+.HOPE{background-color:#FF9F1C;}
+.PR{background-color:#FF4B91;}
+.UCSP{background-color:#48CAE4;}
+.STATPROB{background-color:#9D4EDD;}
+
+#quizContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 720px;
+}
+
+#quizQuestion {
+  font-size: 20px;
+  margin: 6px 0;
+  text-align: center;
+}
+
+#quizOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 90%;
+  max-width: 600px;
+}
+
+.option-btn {
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.08);
+  color: white; /* ✅ fixed text color */
+  cursor: pointer;
+}
+
+.option-btn:hover {
+  transform: translateY(-3px);
+}
+
+.option-btn.correct {
+  background: linear-gradient(90deg, #2ecc7133, #2ecc71cc);
+  color: #00220a;
+}
+
+.option-btn.wrong {
+  background: linear-gradient(90deg, #ff6b6b33, #ff6b6bcc);
+  color: #3a0000;
+}
+
+#timerDisplay {
+  font-weight: 700;
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+#resultDisplay {
+  margin-top: 8px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#countdownOverlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 50;
+}
+
+#countdownNum {
+  font-size: 96px;
+  font-weight: 900;
+  color: var(--accent);
+}
+
+.input-id{padding:12px;border-radius:10px;border:none;font-size:16px;width:80%;text-align:center}
+
+.controls-row{display:flex;gap:12px;align-items:center;justify-content:center;margin-top:10px;flex-wrap:wrap;}
+.small-muted{font-size:13px;color:rgba(255,255,255,0.7);}
+.footer-note{position:fixed;left:12px;bottom:12px;font-size:12px;color:rgba(255,255,255,0.35);}
+</style>
+</head>
+<body>
+<div class="bg-anim"></div>
+<div class="watermark">SMART CLICK</div>
+
+<!-- LOADING SCREEN -->
+<section id="loadingScreen" class="stage">
+  <div class="logo-big">SMART CLICK</div>
+  <div class="loadbar"><div id="bar" class="bar"></div></div>
+  <div id="loadingText" class="loading-text">Loading... 0%</div>
+  <button id="startBtn" class="start-btn" style="display:none;">START GAME</button>
+</section>
+
+<!-- MAIN MENU -->
+<section id="mainMenu" class="menu stage">
+  <div class="logo-big">SMART CLICK</div>
+  <button id="soloBtn" class="bigbtn">SOLO</button>
+  <button id="multiBtn" class="bigbtn" disabled>COMING SOON</button>
+</section>
+
+<!-- SUBJECTS -->
+<section id="subjectScreen" class="menu stage">
+  <div class="logo-big">CHOOSE A SUBJECT</div>
+  <div class="subjects-grid">
+    <button class="subject-btn RAW">READING &amp; WRITING</button>
+    <button class="subject-btn KPWKP">KPWKP</button>
+    <button class="subject-btn EALS">EALS</button>
+    <button class="subject-btn CSS">CSS</button>
+    <button class="subject-btn HOPE">HOPE</button>
+    <button class="subject-btn PR">PRACTICAL RESEARCH</button>
+    <button class="subject-btn UCSP">UCSP</button>
+    <button class="subject-btn STATPROB">STATISTICS &amp; PROBABILITY</button>
+  </div>
+  <button id="backToMenu" class="start-btn" style="margin-top:25px;">← BACK</button>
+</section>
+
+<!-- QUIZ SCREEN -->
+<section id="quizScreen" class="menu stage">
+  <div class="logo-big">QUIZ TIME!</div>
+
+  <div id="countdownOverlay">
+    <div id="countdownNum">3</div>
+  </div>
+
+  <div id="quizContainer">
+    <div id="quizQuestion">Question</div>
+    <div id="quizOptions"></div>
+    <div id="timerDisplay">Time: 20s</div>
+    <div id="resultDisplay"></div>
+
+    <div class="controls-row">
+      <button id="nextBtn" class="start-btn" style="display:none;">Next ➜</button>
+      <button id="quizBackBtn" class="start-btn">← BACK</button>
+      <div class="small-muted" id="progressDisplay">0 / 20</div>
+    </div>
+  </div>
+</section>
+
+<!-- AUDIO -->
+<audio id="bgm" loop preload="auto">
+  <source src="https://www.orangefreesounds.com/wp-content/uploads/2021/12/Quiz-show-background-music-loop.mp3" type="audio/mpeg">
+</audio>
+<audio id="clickSound" preload="auto">
+  <source src="https://www.soundjay.com/buttons/sounds/button-30.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+/* ========= Elements ========= */
+const bar=document.getElementById("bar");
+const loadingText=document.getElementById("loadingText");
+const startBtn=document.getElementById("startBtn");
+const loadingScreen=document.getElementById("loadingScreen");
+const mainMenu=document.getElementById("mainMenu");
+const subjectScreen=document.getElementById("subjectScreen");
+const soloBtn=document.getElementById("soloBtn");
+const backToMenu=document.getElementById("backToMenu");
+const bgm=document.getElementById("bgm");
+const clickSound=document.getElementById("clickSound");
+const quizScreen=document.getElementById("quizScreen");
+const quizQuestion=document.getElementById("quizQuestion");
+const quizOptions=document.getElementById("quizOptions");
+const quizBackBtn=document.getElementById("quizBackBtn");
+const timerDisplay=document.getElementById("timerDisplay");
+const resultDisplay=document.getElementById("resultDisplay");
+const countdownOverlay=document.getElementById("countdownOverlay");
+const countdownNum=document.getElementById("countdownNum");
+const nextBtn=document.getElementById("nextBtn");
+const progressDisplay=document.getElementById("progressDisplay");
+
+function playClick(){clickSound.currentTime=0;clickSound.play().catch(()=>{});}
+/* ========= Loading animation ========= */
+let progress=0;
+const loadInterval=setInterval(()=>{
+  progress+=5;
+  if(progress>=100){progress=100;clearInterval(loadInterval);startBtn.style.display="block";}
+  bar.style.width=progress+"%";
+  loadingText.textContent="Loading... "+progress+"%";
+},100);
+  
+/* ========= Start game ========= */
+startBtn.addEventListener("click",()=>{
+  playClick();
+  loadingScreen.style.display="none";
+  mainMenu.classList.add("show");
+  bgm.volume=0.35;
+  bgm.play().catch(()=>{});
+});
+
+/* ========= Menu navigation ========= */
+soloBtn.addEventListener("click",()=>{
+  playClick();
+  mainMenu.classList.remove("show");
+  setTimeout(()=>subjectScreen.classList.add("show"),350);
+});
+backToMenu.addEventListener("click",()=>{
+  playClick();
+  subjectScreen.classList.remove("show");
+  setTimeout(()=>mainMenu.classList.add("show"),350);
+});
+quizBackBtn.addEventListener("click",()=>{
+  playClick();
+  timerClear();
+  quizScreen.classList.remove("show");
+  setTimeout(()=>subjectScreen.classList.add("show"),350);
+});
+
+/* ========= Sounds ========= */
+const correctSound=new Audio("https://www.soundjay.com/button/beep-07.wav");
+const wrongSound=new Audio("https://www.soundjay.com/button/beep-10.wav");
+const tickSound=new Audio("https://www.soundjay.com/clock/sounds/clock-ticking-1.mp3");
+const startBeep=new Audio("https://www.soundjay.com/button/beep-01a.wav");
+
+/* ========= Question Banks ========= */
+const quizzes = {
+  RAW: [
+    {type:"mcq",q:"Which pattern of development tells a story or sequence of events?",choices:["Description","Narration","Classification","Definition"],a:"Narration"},
+    {type:"mcq",q:"What type of paragraph uses sensory details to create a vivid picture?",choices:["Description","Narration","Persuasion","Exemplification"],a:"Description"},
+    {type:"mcq",q:"What does the pattern of 'definition' mainly do?",choices:["Describe objects","Clarify meaning of a term or idea","Tell a story","Give examples"],a:"Clarify meaning of a term or idea"},
+    {type:"mcq",q:"Which pattern of development groups ideas into categories?",choices:["Classification","Comparison","Definition","Cause and effect"],a:"Classification"},
+    {type:"mcq",q:"What is the main purpose of 'exemplification'?",choices:["To give examples that support the main idea","To describe people","To tell a story","To persuade readers"],a:"To give examples that support the main idea"},
+    {type:"mcq",q:"Which pattern shows similarities and differences?",choices:["Comparison and contrast","Description","Cause and effect","Definition"],a:"Comparison and contrast"},
+    {type:"mcq",q:"Which pattern explains why something happens and what happens as a result?",choices:["Comparison","Cause and effect","Classification","Problem-solution"],a:"Cause and effect"},
+    {type:"mcq",q:"Which pattern presents a difficulty and suggests a way to solve it?",choices:["Problem-solution","Definition","Narration","Persuasion"],a:"Problem-solution"},
+    {type:"mcq",q:"What is the goal of a 'persuasive paragraph'?",choices:["To inform readers","To convince readers to believe or do something","To describe places","To entertain"],a:"To convince readers to believe or do something"},
+    {type:"mcq",q:"What is 'coherence' in writing?",choices:["Correct punctuation","Logical connection of ideas","Grammar rules","Sentence length"],a:"Logical connection of ideas"},
+    {type:"tf",q:"Description uses sensory words to make readers imagine.",a:"True"},
+    {type:"tf",q:"Definition writing explains a term or concept clearly.",a:"True"},
+    {type:"tf",q:"Classification divides ideas into categories or groups.",a:"True"},
+    {type:"tf",q:"Cause and effect paragraphs explain why and what happens.",a:"True"},
+    {type:"tf",q:"Coherence means ideas are logically arranged.",a:"True"},
+    {type:"id",q:"Pattern of development that tells a story.",a:"Narration"},
+    {type:"id",q:"Pattern that appeals to the five senses.",a:"Description"},
+    {type:"id",q:"Pattern that defines and clarifies a concept.",a:"Definition"},
+    {type:"id",q:"Pattern that groups ideas into categories.",a:"Classification"},
+    {type:"id",q:"Pattern that uses examples to explain ideas.",a:"Exemplification"}
+  ],
+
+  PR: [
+    {type:"mcq",q:"What is the first step in the research process?",choices:["Data collection","Formulating a research title","Identifying the research problem","Writing the conclusion"],a:"Identifying the research problem"},
+    {type:"mcq",q:"Which section presents related studies and readings?",choices:["Introduction","Review of Related Literature","Methodology","Findings"],a:"Review of Related Literature"},
+    {type:"mcq",q:"What does hypothesis mean?",choices:["An educated guess","A conclusion","A problem statement","A recommendation"],a:"An educated guess"},
+    {type:"mcq",q:"Which type of research seeks to solve practical problems?",choices:["Basic research","Applied research","Quantitative research","Descriptive research"],a:"Applied research"},
+    {type:"mcq",q:"Which variable is manipulated by the researcher?",choices:["Dependent variable","Independent variable","Control variable","Extraneous variable"],a:"Independent variable"},
+    {type:"mcq",q:"What is the purpose of a research instrument?",choices:["To collect data","To analyze data","To write the summary","To make graphs"],a:"To collect data"},
+    {type:"mcq",q:"Which part of the research paper presents the summary, conclusion, and recommendation?",choices:["Chapter 1","Chapter 2","Chapter 3","Chapter 5"],a:"Chapter 5"},
+    {type:"mcq",q:"What is plagiarism?",choices:["Proper citation","Copying someone’s work without credit","Summarizing ideas","Publishing your own work"],a:"Copying someone’s work without credit"},
+    {type:"mcq",q:"What does population mean in research?",choices:["Total number of respondents","A small portion of data","A variable","A hypothesis"],a:"Total number of respondents"},
+    {type:"mcq",q:"What type of research uses numbers and statistics?",choices:["Qualitative","Quantitative","Experimental","Action research"],a:"Quantitative"},
+    {type:"tf",q:"Research is a systematic process of inquiry.",a:"True"},
+    {type:"tf",q:"Hypothesis is always proven true in research.",a:"False"},
+    {type:"tf",q:"Survey is a method used in quantitative research.",a:"True"},
+    {type:"tf",q:"References are optional in a research paper.",a:"False"},
+    {type:"tf",q:"Ethical considerations are important in conducting research.",a:"True"},
+    {type:"id",q:"A small portion taken from the population.",a:"Sample"},
+    {type:"id",q:"A statement that can be tested or proven.",a:"Hypothesis"},
+    {type:"id",q:"Research that focuses on solving practical problems.",a:"Applied research"},
+    {type:"id",q:"The part of the research that explains how the study was conducted.",a:"Methodology"},
+    {type:"id",q:"The final chapter that includes conclusion and recommendation.",a:"Chapter 5"}
+  ],
+  
+HOPE: [
+  // 🧩 A. Multiple Choice
+  {type:"mcq", q:"What is the ability to carry out daily tasks without getting tired easily?", choices:["Health","Physical Fitness","Skill","Strength"], a:"Physical Fitness"},
+  {type:"mcq", q:"Which type of fitness focuses on overall health and disease prevention?", choices:["Health-related fitness","Skill-related fitness","Physical activity","Exercise"], a:"Health-related fitness"},
+  {type:"mcq", q:"Which type of fitness improves athletic performance?", choices:["Physical fitness","Skill-related fitness","Health-related fitness","Muscular fitness"], a:"Skill-related fitness"},
+  {type:"mcq", q:"The ability of the heart, lungs, and blood vessels to supply oxygen is called:", choices:["Flexibility","Muscular strength","Cardio-respiratory endurance","Body composition"], a:"Cardio-respiratory endurance"},
+  {type:"mcq", q:"The maximum force a muscle can exert is called:", choices:["Muscular endurance","Power","Muscular strength","Coordination"], a:"Muscular strength"},
+  {type:"mcq", q:"The ability of a muscle to perform for a long time without fatigue is:", choices:["Flexibility","Muscular endurance","Agility","Balance"], a:"Muscular endurance"},
+  {type:"mcq", q:"The ability of joints to move through a wide range of motion is:", choices:["Flexibility","Power","Coordination","Strength"], a:"Flexibility"},
+  {type:"mcq", q:"What refers to the ratio of body fat to lean body mass?", choices:["Muscular endurance","Body composition","Flexibility","Agility"], a:"Body composition"},
+  {type:"mcq", q:"The ability to change body position quickly is called:", choices:["Agility","Balance","Power","Reaction time"], a:"Agility"},
+  {type:"mcq", q:"The ability to stay in a steady position while standing or moving is:", choices:["Agility","Power","Balance","Speed"], a:"Balance"},
+
+  // 🧠 B. True or False
+  {type:"tf", q:"Physical fitness means being able to do daily tasks easily.", a:"True"},
+  {type:"tf", q:"Skill-related fitness focuses on preventing diseases.", a:"False"},
+  {type:"tf", q:"Cardio-respiratory endurance involves heart and lung function.", a:"True"},
+  {type:"tf", q:"Muscular endurance is the same as muscular strength.", a:"False"},
+  {type:"tf", q:"Body composition compares body fat and lean mass.", a:"True"},
+  {type:"tf", q:"Agility helps a person change direction quickly.", a:"True"},
+  {type:"tf", q:"Power is the combination of strength and speed.", a:"True"},
+  {type:"tf", q:"Reaction time measures how flexible your body is.", a:"False"},
+  {type:"tf", q:"Hyperthermia occurs when body temperature drops too low.", a:"False"},
+  {type:"tf", q:"Lack of time is a common barrier to exercise.", a:"True"},
+
+  // ✏️ C. Identification
+  {type:"id", q:"Efficiency of heart, lungs, and blood vessels in supplying oxygen.", a:"Cardio-respiratory endurance"},
+  {type:"id", q:"Maximum force a muscle can exert.", a:"Muscular strength"},
+  {type:"id", q:"Ability of a muscle to perform repeatedly without fatigue.", a:"Muscular endurance"},
+  {type:"id", q:"Ability of joints to move freely.", a:"Flexibility"},
+  {type:"id", q:"Ratio of fat to lean body mass.", a:"Body composition"},
+  {type:"id", q:"Ability to maintain a stable position while moving.", a:"Balance"},
+  {type:"id", q:"Ability of body parts to work together.", a:"Coordination"},
+  {type:"id", q:"Eating to gain energy before activity.", a:"Fueling for performance"},
+  {type:"id", q:"Eating with friends or due to company.", a:"Social eating"},
+  {type:"id", q:"Formula used to find maximum heart rate.", a:"220 – age"}
+],
+  
+  UCSP: [
+  // 🍀 A. Multiple Choice
+  {type:"mcq", q:"Understanding Culture, Society, and Politics combines what three disciplines?", choices:["Psychology, Biology, History","Anthropology, Political Science, Sociology","Chemistry, Geography, Art","History, Literature, Math"], a:"Anthropology, Political Science, Sociology"},
+  {type:"mcq", q:"Who is known as the 'Father of Sociology'?", choices:["Karl Marx","Auguste Comte","Max Weber","Franz Boas"], a:"Auguste Comte"},
+  {type:"mcq", q:"Anthropology is the study of __________.", choices:["Government and laws","Human beings and their culture","Environment and nature","Money and trade"], a:"Human beings and their culture"},
+  {type:"mcq", q:"Who is the 'Father of Modern American Anthropology'?", choices:["Franz Boas","Karl Marx","Aristotle","Socrates"], a:"Franz Boas"},
+  {type:"mcq", q:"Which theory sees society as divided between the rich and poor?", choices:["Structural Functionalism","Conflict Theory","Cultural Relativism","Symbolic Interactionism"], a:"Conflict Theory"},
+  {type:"mcq", q:"Which philosopher studied government and power?", choices:["Socrates","Plato","Aristotle","All of the above"], a:"All of the above"},
+  {type:"mcq", q:"Which is a characteristic of culture?", choices:["It is learned","It is born with us","It never changes","It cannot be shared"], a:"It is learned"},
+  {type:"mcq", q:"Which describes a nuclear family?", choices:["Parents, children, and other relatives","Only parents and children","Many families in one house","Grandparents only"], a:"Only parents and children"},
+  {type:"mcq", q:"What do you call the process of learning your own culture?", choices:["Enculturation","Diffusion","Civilization","Ethnocentrism"], a:"Enculturation"},
+  {type:"mcq", q:"The spread of ideas or practices from one culture to another is called:", choices:["Cultural Relativism","Cultural Diffusion","Enculturation","Structuralism"], a:"Cultural Diffusion"},
+
+  // ✅ B. True or False
+  {type:"tf", q:"Culture can be learned and shared.", a:"True"},
+  {type:"tf", q:"Society and politics are not connected.", a:"False"},
+  {type:"tf", q:"Anthropology studies humans and their culture.", a:"True"},
+  {type:"tf", q:"Franz Boas is the Father of Sociology.", a:"False"},
+  {type:"tf", q:"Auguste Comte coined the term Sociology.", a:"True"},
+  {type:"tf", q:"Conflict Theory focuses on peace and teamwork.", a:"False"},
+  {type:"tf", q:"Karl Marx believed that rich people control poor people.", a:"True"},
+  {type:"tf", q:"Culture always stays the same.", a:"False"},
+  {type:"tf", q:"Ethnocentrism means judging other cultures by your own.", a:"True"},
+  {type:"tf", q:"Cultural Relativism means understanding a culture in its own way.", a:"True"},
+
+  // ✏️ C. Identification
+  {type:"id", q:"The study of humans and their culture.", a:"Anthropology"},
+  {type:"id", q:"The study of society and social relationships.", a:"Sociology"},
+  {type:"id", q:"The study of government and power.", a:"Political Science"},
+  {type:"id", q:"Known as the Father of Sociology.", a:"Auguste Comte"},
+  {type:"id", q:"Known as the Father of Modern American Anthropology.", a:"Franz Boas"},
+  {type:"id", q:"The process of learning one’s own culture.", a:"Enculturation"},
+  {type:"id", q:"The spread of culture and ideas.", a:"Cultural Diffusion"},
+  {type:"id", q:"The belief that your culture is the best.", a:"Ethnocentrism"},
+  {type:"id", q:"Family made up of parents and children only.", a:"Nuclear Family"},
+  {type:"id", q:"The New Stone Age.", a:"Neolithic Era"}
+],
+  
+  KPWKP: [
+    {type:"mcq",q:"Ano ang HINDI kabilang sa limang pangunahing bloggers sa Pilipinas ayon sa Edrabia.com?",choices:["Gala","Yugatech","Unbox.ph","Lakwatsero"],a:"Gala"},
+    {type:"mcq",q:"Alin ang HINDI kabilang sa Food Blog?",choices:["Recipe","Pagkuha ng larawan ng pagkain","Rebyu ng pagkain","Pagpapakain sa feeding program"],a:"Pagpapakain sa feeding program"},
+    {type:"mcq",q:"Alin ang HINDI kabilang sa News Blog?",choices:["Isports","Politika","Entertainment","Field Trip"],a:"Field Trip"},
+    {type:"mcq",q:"Alin ang HINDI kabilang sa Fashion Blog?",choices:["Pananamit","Karanasan sa pananamit","Personal na istilo","Industriya ng fashion"],a:"Karanasan sa pananamit"},
+    {type:"mcq",q:"Alin ang HINDI kabilang sa Personal Blog?",choices:["Muling pagpo-post nang naipost na","May tema ang paksa","Personal na paniniwala","Malaya ang paksa"],a:"May tema ang paksa"},
+    {type:"mcq",q:"Pang ilang beses na nakamit ng Pilipinas ang kabisera ng Social Media noong taong 2019?",choices:["Una","Ikalawa","Ikatlo","Ikaapat"],a:"Ikatlo"},
+    {type:"mcq",q:"Ayon sa tala ng Talkwalker Quick Search noong 2019, sakop ng mula ilang taon hanggang ilang taon ang may pinakamalaking bahagdan ng gumagamit ng social media?",choices:["Edad 13-17","Edad 18-24","Edad 24-34","Edad 35-44"],a:"Edad 18-24"},
+    {type:"mcq",q:"Ilang oras daw ang karaniwang ginugugol ng mga Filipino sa paggamit ng social media?",choices:["Dalawang oras","Tatlong oras","Apat na oras","Limang oras"],a:"Apat na oras"},
+    {type:"mcq",q:"Alin ang HINDI kabilang sa limang pangunahing website na pinakabinibisita noong 2019 ayon sa SimilarWeb.com?",choices:["IWantTV.com","Yahoo.com","Google.com.ph","YouTube.com"],a:"IWantTV.com"},
+    {type:"mcq",q:"Alin ang HINDI kasama sa pangunahing wikang ginagamit na sa Pilipinas?",choices:["Filipino","Ingles","Hapon","German"],a:"Hapon"},
+    {type:"tf",q:"Ang limang pinakanangingibabaw na blogger sa Pilipinas ay gumagamit ng wikang Filipino bilang kanilang midyum.",a:"False"},
+    {type:"tf",q:"Bilang blogger, nagkakaroon sila ng kakayahan na impluwensiyahan ang paniniwala ng mga konsyumer.",a:"True"},
+    {type:"tf",q:"Batay sa pananaliksik ng Internet Society (2015) noong 2012, 90% ang gumagamit ng internet sa Pilipinas.",a:"True"},
+    {type:"tf",q:"Gumagamit ng Taglish ang mga nag-uulat sa radyo at telebisyon sa kanilang pakikipanayam at paglalahad ng impormasyon.",a:"True"},
+    {type:"tf",q:"Karaniwan sa mga istasyon ng radyo sa kasalukuyan ay mayroong mga dramang napapakinggan na kinagigiliwan ng mga kabataan.",a:"True"},
+    {type:"id",q:"Nakakatulong ang mga ganitong blog upang maliwanagan ang mga mag-aaral sa mga aralin na hindi maintindihan sa paaralan.",a:"Educational vlog"},
+    {type:"id",q:"Tawag sa komunidad o mundo ng mga blogger.",a:"Blogosphere"},
+    {type:"id",q:"Naglalaman ng anomang bagay na may kinalaman sa pananamit at personal na istilo.",a:"Fashion blog"},
+    {type:"id",q:"Isa sa mga layunin nito ay ang paglalathala ng kuhang larawan ng nagba-blog nito.",a:"Photo blog"},
+    {type:"id",q:"Tinatawag na Tabloid at Broadsheet ang mga halimbawa ng daluyang ito.",a:"Dyaryo"}
+  ],
+
+  STATPROB: [
+  // 🧩 Multiple Choice (1–10)
+  {type:"mcq",q:"What is a function that assigns a real number to each element in the sample space?",choices:["Probability","Random Variable","Mean","Variance"],a:"Random Variable"},
+  {type:"mcq",q:"Which random variable has values that are countable and without decimals?",choices:["Discrete Random Variable","Continuous Random Variable","Probability Variable","Constant Variable"],a:"Discrete Random Variable"},
+  {type:"mcq",q:"Which random variable can take infinitely many values, including decimals?",choices:["Discrete Random Variable","Continuous Random Variable","Dependent Variable","Random Sample"],a:"Continuous Random Variable"},
+  {type:"mcq",q:"Which of the following is an example of a discrete random variable?",choices:["Number of students in a classroom","Temperature in the city","Height of plants","Weight of a person"],a:"Number of students in a classroom"},
+  {type:"mcq",q:"Which of the following is an example of a continuous random variable?",choices:["Number of cars in a parking lot","Amount of water in a glass","Number of pets in a house","Number of pens in a bag"],a:"Amount of water in a glass"},
+  {type:"mcq",q:"What is the total probability of all possible outcomes in a sample space?",choices:["1/2","0","1","Infinite"],a:"1"},
+  {type:"mcq",q:"The mean of a discrete random variable is also called the:",choices:["Probability Value","Expected Value","Variance","Deviation"],a:"Expected Value"},
+  {type:"mcq",q:"The square root of variance is called:",choices:["Deviation","Mean","Standard Deviation","Average"],a:"Standard Deviation"},
+  {type:"mcq",q:"What shape does a normal distribution have?",choices:["Skewed","Bell-shaped","Flat","Irregular"],a:"Bell-shaped"},
+  {type:"mcq",q:"A z-score tells how many ______ a value is from the mean.",choices:["Percentages","Standard deviations","Means","Probabilities"],a:"Standard deviations"},
+
+  // 🧠 True or False (11–15)
+  {type:"tf",q:"Random variables can only take decimal values.",a:"False"},
+  {type:"tf",q:"Discrete random variables are countable.",a:"True"},
+  {type:"tf",q:"The normal curve is always asymmetrical.",a:"False"},
+  {type:"tf",q:"A negative z-score means the value is below the mean.",a:"True"},
+  {type:"tf",q:"Variance measures how far values are from the mean.",a:"True"},
+
+  // ✏️ Identification (16–20)
+  {type:"id",q:"Function that gives a numerical value to each event.",a:"Random Variable"},
+  {type:"id",q:"Random variable with countable outcomes.",a:"Discrete Random Variable"},
+  {type:"id",q:"Random variable that can have decimals.",a:"Continuous Random Variable"},
+  {type:"id",q:"The square root of variance.",a:"Standard Deviation"},
+  {type:"id",q:"Rule of 68–95–99.7%.",a:"Empirical Rule"}
+],
+  
+  CSS: [
+  // 🍀 A. Multiple Choice
+  {type:"mcq", q:"What is the most powerful type of computer in terms of performance and data processing?", choices:["Mainframe","Supercomputer","Minicomputer","Microcomputer"], a:"Supercomputer"},
+  {type:"mcq", q:"Which type of computer is commonly used by large companies and government offices?", choices:["Mainframe","Supercomputer","Microcomputer","Laptop"], a:"Mainframe"},
+  {type:"mcq", q:"Another term for a Minicomputer is:", choices:["Small-range machine","Midrange machine","Super machine","Basic computer"], a:"Midrange machine"},
+  {type:"mcq", q:"What is a Microcomputer commonly known as?", choices:["Personal Computer","Server","Supercomputer","Terminal"], a:"Personal Computer"},
+  {type:"mcq", q:"The main part of a computer that houses the components is called:", choices:["Monitor","System Unit","CPU","Mouse"], a:"System Unit"},
+  {type:"mcq", q:"Which device allows the user to point and click on the screen?", choices:["Keyboard","Mouse","Printer","Speaker"], a:"Mouse"},
+  {type:"mcq", q:"The laser printer is known as the:", choices:["Cheapest printer","Slowest printer","Fastest printer","Color-only printer"], a:"Fastest printer"},
+  {type:"mcq", q:"What is the main storage device that permanently stores data?", choices:["RAM","Hard Disk Drive","CPU","Flash Drive"], a:"Hard Disk Drive"},
+  {type:"mcq", q:"Which part temporarily stores data?", choices:["CPU","Hard Drive","RAM","Monitor"], a:"RAM"},
+  {type:"mcq", q:"The part that executes instructions and processes data is:", choices:["RAM","PSU","CPU","Motherboard"], a:"CPU"},
+
+  // ✅ B. True or False
+  {type:"tf", q:"Supercomputers are used for research and weather forecasting.", a:"True"},
+  {type:"tf", q:"Mainframes are more powerful than supercomputers.", a:"False"},
+  {type:"tf", q:"The keyboard is an output device.", a:"False"},
+  {type:"tf", q:"The CPU is known as the brain of the computer.", a:"True"},
+  {type:"tf", q:"The motherboard is also called the system board.", a:"True"},
+  {type:"tf", q:"RAM permanently stores data even when the power is off.", a:"False"},
+  {type:"tf", q:"The PSU provides power to all computer components.", a:"True"},
+  {type:"tf", q:"SATA has a slower transfer rate than IDE.", a:"False"},
+  {type:"tf", q:"The CMOS contains the BIOS.", a:"True"},
+  {type:"tf", q:"The Blu-ray disc can store more data than a DVD.", a:"True"},
+  {type:"tf", q:"A webcam is an output device.", a:"False"},
+  {type:"tf", q:"A joystick is used to control video games.", a:"True"},
+  {type:"tf", q:"Speakers are input devices.", a:"False"},
+  {type:"tf", q:"A projector displays images on a surface.", a:"True"},
+  {type:"tf", q:"Goggles protect your hands from cuts.", a:"False"},
+  {type:"tf", q:"Gloves protect your eyes from dust.", a:"False"},
+  {type:"tf", q:"A multimeter is a diagnostic tool.", a:"True"},
+  {type:"tf", q:"It is safe to work alone when fixing a computer.", a:"False"},
+  {type:"tf", q:"During disassembly, the computer must be turned off and unplugged.", a:"True"},
+  {type:"tf", q:"The POST test checks if the system meets boot requirements.", a:"True"},
+
+  // ✏️ C. Identification
+  {type:"id", q:"The smallest type of computer form factor — introduced by VIA in 2007.", a:"Pico-ITX"},
+  {type:"id", q:"The main part of a computer that stores data and runs the operating system.", a:"System Unit"},
+  {type:"id", q:"The main board that connects all components.", a:"Motherboard"},
+  {type:"id", q:"Device that provides power to a computer.", a:"Power Supply Unit (PSU)"},
+  {type:"id", q:"Temporary memory of a computer.", a:"RAM (Random Access Memory)"},
+  {type:"id", q:"Main storage device using magnetic disks.", a:"Hard Disk Drive (HDD)"},
+  {type:"id", q:"Gear used for safety such as goggles and gloves.", a:"Personal Protective Equipment (PPE)"},
+  {type:"id", q:"Tool used to test electrical circuits.", a:"Multimeter"},
+  {type:"id", q:"Process of taking apart a system unit.", a:"Computer Disassembly"},
+  {type:"id", q:"Test that checks system hardware during startup.", a:"Power-On Self-Test (POST)"}
+],
+  
+  EALS: [
+    {type:"mcq",q:"What element is essential for all known forms of life?",choices:["Oxygen","Water","Carbon dioxide","Iron"],a:"Water"},
+    {type:"mcq",q:"The 'Goldilocks Zone' refers to:",choices:["A planet too hot for life","A zone with just the right temperature for liquid water","A frozen planet","The Earth's magnetic field"],a:"A zone with just the right temperature for liquid water"},
+    {type:"mcq",q:"What is the main source of external heat on Earth?",choices:["Earth’s core","The Sun","Volcanoes","Tides"],a:"The Sun"},
+    {type:"mcq",q:"Which subsystem includes landforms and rocks?",choices:["Biosphere","Geosphere","Atmosphere","Hydrosphere"],a:"Geosphere"},
+    {type:"mcq",q:"All living things belong to which subsystem?",choices:["Hydrosphere","Atmosphere","Biosphere","Geosphere"],a:"Biosphere"},
+    {type:"mcq",q:"Which property of minerals describes their resistance to scratching?",choices:["Cleavage","Luster","Hardness","Color"],a:"Hardness"},
+    {type:"mcq",q:"Rocks that form from cooling magma are called:",choices:["Sedimentary","Igneous","Metamorphic","Fossilized"],a:"Igneous"},
+    {type:"mcq",q:"Sedimentary rocks are formed from:",choices:["Magma","Layers of sediments","Heat and pressure","Crystals"],a:"Layers of sediments"},
+    {type:"mcq",q:"Metamorphic rocks form through:",choices:["Lava cooling","Weathering","High heat and pressure","Sediment accumulation"],a:"High heat and pressure"},
+    {type:"mcq",q:"Which isotope is used in absolute dating?",choices:["Oxygen-16","Carbon-14","Nitrogen-12","Iron-56"],a:"Carbon-14"},
+    {type:"tf",q:"Water is necessary for life to exist.",a:"True"},
+    {type:"tf",q:"The biosphere includes only plants.",a:"False"},
+    {type:"tf",q:"The atmosphere contains gases like nitrogen and oxygen.",a:"True"},
+    {type:"tf",q:"Chemical weathering changes the mineral’s composition.",a:"True"},
+    {type:"tf",q:"Temperature decreases with depth according to the geothermal gradient.",a:"False"},
+    {type:"id",q:"The solid part of the Earth made up of rocks and soil.",a:"Geosphere"},
+    {type:"id",q:"The layer of gases that surrounds Earth.",a:"Atmosphere"},
+    {type:"id",q:"The part of Earth containing all bodies of water.",a:"Hydrosphere"},
+    {type:"id",q:"The division of time that lasted half of Earth’s age and is called the 'age of change.'",a:"Proterozoic Eon"},
+    {type:"id",q:"A sudden shaking of the ground caused by tectonic movements.",a:"Earthquake"}
+  ]
+};
+  let currentSubject = null;
+let questions = [];
+let index=0, score=0, timeLeft=20, timerRef=null;
+/* ========= Subject Selection ========= */
+document.querySelector(".RAW").addEventListener("click", () => {
+  startSubject("RAW");
+});
+
+document.querySelector(".PR").addEventListener("click", () => {
+  startSubject("PR");
+});
+
+document.querySelector(".KPWKP").addEventListener("click", () => {
+  startSubject("KPWKP");
+});
+  document.querySelector(".EALS").addEventListener("click", () => {
+  startSubject("EALS");
+});
+document.querySelector(".STATPROB").addEventListener("click", () => {
+  startSubject("STATPROB");
+});
+document.querySelector(".HOPE").addEventListener("click", () => {
+  startSubject("HOPE");
+});
+  document.querySelector(".UCSP").addEventListener("click", () => {
+  startSubject("UCSP");
+});
+  document.querySelector(".CSS").addEventListener("click", () => {
+  startSubject("CSS");
+});
+function startSubject(subj){
+  playClick();
+  currentSubject = subj;
+  subjectScreen.classList.remove("show");
+  setTimeout(()=>{
+    quizScreen.classList.add("show");
+    prepareStartScreen();
+  },350);
+}
+  /* ========= Prepare READY screen ========= */
+function prepareStartScreen() {
+  questions = [...quizzes[currentSubject]];
+  questions.sort(() => Math.random() - 0.5);
+
+  let subjectName = "";
+  if (currentSubject === "RAW") subjectName = "Reading & Writing";
+  else if (currentSubject === "PR") subjectName = "Practical Research";
+  else if (currentSubject === "KPWKP") subjectName = "KPWKP";
+  else if (currentSubject === "EALS") subjectName = "EALS";
+  else if (currentSubject === "STATPROB") subjectName = "STATPROB";
+  else if (currentSubject === "HOPE") subjectName = "HOPE";
+  else if (currentSubject === "UCSP") subjectName = "UCSP";
+  else if (currentSubject === "CSS") subjectName = "CSS";
+
+  quizQuestion.textContent = `${subjectName} Quiz`;
+
+  quizOptions.innerHTML = `<button id='startQuizBtn' class='start-btn'>READY</button>`;
+  resultDisplay.textContent = "";
+  timerDisplay.textContent = `Time: 20s`;
+  progressDisplay.textContent = `0 / ${questions.length}`;
+  document.getElementById("startQuizBtn").addEventListener("click", startCountdown);
+}
+  /* ========= Countdown ========= */
+function startCountdown() {
+  let count = 3;
+  countdownOverlay.style.display = "flex";
+  countdownNum.textContent = count;
+
+  // 🧠 Create a simple beep sound using Web Audio API
+  function playBeep() {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine"; // you can try 'square' or 'triangle' for a different tone
+    osc.frequency.value = 600; // pitch of the beep
+    gain.gain.setValueAtTime(0.2, ctx.currentTime); // volume
+    osc.start();
+    osc.stop(ctx.currentTime + 0.15); // short beep
+  }
+
+  // Sequence for countdown
+  const sequence = [3, 2, 1, "GO!"];
+  let i = 0;
+
+  const timer = setInterval(() => {
+    countdownNum.textContent = sequence[i];
+
+    // Play beep only for numbers (not "GO!")
+    if (i < sequence.length - 1) {
+      playBeep();
+    } else {
+      // A slightly different beep for "GO!"
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = "square";
+      osc.frequency.value = 800;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+    }
+
+    i++;
+    if (i >= sequence.length) {
+      clearInterval(timer);
+      setTimeout(() => {
+        countdownOverlay.style.display = "none";
+        startQuiz();
+      }, 700);
+    }
+  }, 1000);
+}
+  /* ========= Quiz Flow ========= */
+function startQuiz(){
+  index=0; score=0;
+  showQuestion();
+  startTimer();
+  updateProgress();
+}
+
+function showQuestion(){
+  const q = questions[index];
+  quizQuestion.textContent = `${index+1}. ${q.q}`;
+  quizOptions.innerHTML = "";
+  resultDisplay.textContent = "";
+  nextBtn.style.display = "none";
+
+  if(q.type==="mcq"){
+    q.choices.forEach(choice=>{
+      const b=document.createElement("button");
+      b.className="option-btn";
+      b.textContent=choice;
+      b.onclick=()=>handleOptionClick(b,choice,q.a);
+      quizOptions.appendChild(b);
+    });
+  }else if(q.type==="tf"){
+    ["True","False"].forEach(opt=>{
+      const b=document.createElement("button");
+      b.className="option-btn";
+      b.textContent=opt;
+      b.onclick=()=>handleOptionClick(b,opt,q.a);
+      quizOptions.appendChild(b);
+    });
+  }else{
+    const input=document.createElement("input");
+    input.className="input-id";
+    input.placeholder="Type your answer here...";
+    const submit=document.createElement("button");
+    submit.className="start-btn";
+    submit.textContent="Submit";
+    submit.onclick=()=>handleIdentification(input.value,q.a);
+    quizOptions.appendChild(input);
+    quizOptions.appendChild(submit);
+    input.addEventListener("keyup",e=>{if(e.key==="Enter")submit.click();});
+  }
+  timerDisplay.textContent=`Time: ${timeLeft}s`;
+  updateProgress();
+}
+
+function handleOptionClick(btn,user,ans){
+  if(nextBtn.style.display==="block")return;
+  timerClear();
+  Array.from(quizOptions.children).forEach(c=>c.disabled=true);
+  const correct = user.trim().toLowerCase()===ans.trim().toLowerCase();
+  if(correct){score++;correctSound.play();btn.classList.add("correct");resultDisplay.textContent="✅ Correct!";}
+  else{wrongSound.play();btn.classList.add("wrong");Array.from(quizOptions.children).forEach(c=>{if(c.textContent.trim().toLowerCase()===ans.trim().toLowerCase())c.classList.add("correct");});resultDisplay.textContent=`❌ Wrong! Correct: ${ans}`;}
+  nextBtn.style.display="block";
+}
+
+function handleIdentification(user,ans){
+  if(nextBtn.style.display==="block")return;
+  timerClear();
+  const correct=user.trim().toLowerCase()===ans.trim().toLowerCase();
+  if(correct){score++;correctSound.play();resultDisplay.textContent="✅ Correct!";}
+  else{wrongSound.play();resultDisplay.textContent=`❌ Wrong! Correct: ${ans}`;}
+  Array.from(quizOptions.children).forEach(c=>c.disabled=true);
+  nextBtn.style.display="block";
+}
+  /* ========= Timer ========= */
+function startTimer(){
+  timerClear();
+  timeLeft=20;
+  timerDisplay.textContent=`Time: ${timeLeft}s`;
+  timerRef=setInterval(()=>{
+    timeLeft--;
+    timerDisplay.textContent=`Time: ${timeLeft}s`;
+    tickSound.play().catch(()=>{});
+    if(timeLeft<=0){timerClear();handleTimeExpired();}
+  },1000);
+}
+function timerClear(){if(timerRef){clearInterval(timerRef);timerRef=null;}}
+function handleTimeExpired(){
+  Array.from(quizOptions.children).forEach(c=>{try{c.disabled=true;}catch{}});
+  const correct=questions[index].a;
+  resultDisplay.textContent=`⏰ Time's up! Correct: ${correct}`;
+  if(questions[index].type!=="id"){Array.from(quizOptions.children).forEach(c=>{if(c.textContent.trim().toLowerCase()===correct.trim().toLowerCase())c.classList.add("correct");});}
+  nextBtn.style.display="block";
+}
+
+/* ========= Next / Result ========= */
+nextBtn.addEventListener("click",()=>{
+  playClick();
+  index++;
+  if(index<questions.length){showQuestion();startTimer();}
+  else{showResultScreen();}
+});
+function updateProgress(){progressDisplay.textContent=`${Math.min(index+1,questions.length)} / ${questions.length}`;}
+
+function showResultScreen(){
+  quizQuestion.textContent="🎉 Quiz Complete!";
+  quizOptions.innerHTML="";
+  resultDisplay.textContent=`Score: ${score} / ${questions.length}`;
+  const again=document.createElement("button");
+  again.className="start-btn";again.textContent="Play Again";
+  again.onclick=()=>{index=0;score=0;showQuestion();startTimer();};
+  const back=document.createElement("button");
+  back.className="start-btn";back.textContent="Back to Subjects";back.style.marginLeft="12px";
+  back.onclick=()=>{quizScreen.classList.remove("show");setTimeout(()=>subjectScreen.classList.add("show"),300);};
+  quizOptions.appendChild(again);quizOptions.appendChild(back);
+  nextBtn.style.display="none";timerClear();
+}
+window.addEventListener("beforeunload",()=>timerClear());
+</script>
+
